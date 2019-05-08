@@ -44,7 +44,10 @@ class LinearSignalGeneratorTest(unittest.TestCase):
         self.assertEqual(b0[0].shape, (10, 10))
         self.assertEqual(b1[0].shape, (9, 10))
 
-    def test_boundaries(self):
+    def test_no_overlap(self):
+        """Ensure that there is no overlap between the data that a generator is
+        allowed to access and data outside of its range.
+        """
         signal = np.arange(1000)
         df = pd.DataFrame({'signal': signal})
         # Define 2 blocks of 300 and 200 data points respectivly
@@ -60,8 +63,10 @@ class LinearSignalGeneratorTest(unittest.TestCase):
             b = generator[index]
             for example in b[0]:
                 self.assertTrue(np.all(np.diff(example) == 1))
-                r1 = np.all(np.where((example >= 100) & (example < 400), True, False))
-                r2 = np.all(np.where((example >= 700) & (example < 900), True, False))
+                r1 = np.all(np.where((example >= 100) &
+                                     (example < 400), True, False))
+                r2 = np.all(np.where((example >= 700) &
+                                     (example < 900), True, False))
                 self.assertTrue(r1 or r2, example)
                 if r1:
                     r1_count += 1
@@ -69,6 +74,44 @@ class LinearSignalGeneratorTest(unittest.TestCase):
                     r2_count += 1
         self.assertEqual(r1_count, 59)
         self.assertEqual(r2_count, 39)
+
+    def test_non_divisible_sizes(self):
+        """Repeat the non_overlap test with sizes such that the number of
+        datapoints is not divisible by the number of blocks.
+        """
+        signal = np.arange(1000)
+        df = pd.DataFrame({'signal': signal})
+        # Define 2 blocks of 250 and 125 data points respectivly
+        accessor = LinearDatasetAccessor(df, 16, [1, 2, 3, 4, 7, 8])
+        feature_gen = MockFeatureGenerator()
+        generator = LinearSignalGenerator(
+            accessor, 10, feature_gen, 5, batch_size=8)
+        b0_examples = 24 * 2
+        b1_examples = 12 * 2 - 1
+        self.assertEqual(
+            len(generator), (b0_examples + b1_examples - 1) // 8 + 1)
+
+        r1_count = 0
+        r2_count = 0
+        for index in range(len(generator)):
+            b = generator[index]
+            for example in b[0]:
+                self.assertTrue(np.all(np.diff(example) == 1))
+                b0_start = 62
+                b0_end = b0_start + 250
+                r1 = np.all(np.where((example >= b0_start) &
+                                     (example < b0_end), True, False))
+                b1_start = 7 * 62
+                b1_end = b1_start + 125
+                r2 = np.all(np.where((example >= b1_start) &
+                                     (example < b1_end), True, False))
+                self.assertTrue(r1 or r2, example)
+                if r1:
+                    r1_count += 1
+                if r2:
+                    r2_count += 1
+        self.assertEqual(r1_count, b0_examples)
+        self.assertEqual(r2_count, b1_examples)
 
 
 if __name__ == '__main__':
