@@ -1,4 +1,4 @@
-from linear_signal import LinearDatasetAccessor, LinearSignalGenerator, SignalFeatureGenerator
+from .linear_signal import LinearDatasetAccessor, LinearSignalGenerator, SignalFeatureGenerator
 
 import unittest
 import numpy as np
