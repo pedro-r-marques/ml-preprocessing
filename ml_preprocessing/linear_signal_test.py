@@ -4,6 +4,8 @@ import unittest
 import numpy as np
 import pandas as pd
 
+from numpy.testing import assert_array_equal
+
 
 class LinearDatasetAccessorTest(unittest.TestCase):
     def test_continuos_blocks_merge_one(self):
@@ -112,6 +114,26 @@ class LinearSignalGeneratorTest(unittest.TestCase):
                     r2_count += 1
         self.assertEqual(r1_count, b0_examples)
         self.assertEqual(r2_count, b1_examples)
+
+    def test_list_inputs(self):
+        class ListFeatureGenerator(object):
+            def generate(self, df: pd.DataFrame, predict=False):
+                return [np.array([0]), np.array([1])], np.array([0])
+
+        signal = np.random.rand(100)
+        df = pd.DataFrame({'signal': signal})
+        accessor = LinearDatasetAccessor(df, 1, [0])
+        feature_gen = ListFeatureGenerator()
+        generator = LinearSignalGenerator(
+            accessor, 10, feature_gen, batch_size=10)
+        self.assertEqual(len(generator), 1)
+        actual = generator[0][0]
+        expected = [np.array([0] * 10)[:, np.newaxis],
+                    np.array([1] * 10)[:, np.newaxis]]
+        self.assertTrue(isinstance(actual, list))
+        self.assertEqual(len(actual), len(expected))
+        for a, e in zip(actual, expected):
+            assert_array_equal(a, e)
 
 
 if __name__ == '__main__':

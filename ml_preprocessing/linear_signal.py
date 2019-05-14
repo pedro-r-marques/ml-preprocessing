@@ -149,10 +149,19 @@ class LinearSignalGenerator(keras.utils.Sequence):
             df = self.dataset.get_dataframe_slice(
                 block, stride * self.strides, self.segment_size)
             data = self.feature_gen.generate(df)
-            X_list.append(data[0])
+            if isinstance(data[0], list):
+                if not X_list:
+                    X_list = [[] for _ in data[0]]
+                for i, v in enumerate(data[0]):
+                    X_list[i].append(v)
+            else:
+                X_list.append(data[0])
             Y_list.append(data[1])
 
-        X = np.stack(X_list)
+        if X_list and isinstance(X_list[0], list):
+            X = [np.stack(items) for items in X_list]
+        else:
+            X = np.stack(X_list)
         Y = np.stack(Y_list)
         return X, Y
 
